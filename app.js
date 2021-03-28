@@ -1,8 +1,11 @@
+"use strict";
+
 const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
 // require the Model
-const Campground = require('./models/campground')
+const Campground = require('./models/campground');
+const { strict } = require('assert');
 
 mongoose.connect('mongodb://localhost:27017/yelp-camp', {
     // options 
@@ -20,32 +23,39 @@ db.once("open", () => {
 const app = express();
 
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'))
+app.set('views', path.join(__dirname, 'views'));
+
+// Tell express to parse the body, or else req.body will be empty
+app.use(express.urlencoded({ extended: true }));
 
 app.get('/', (req, res) => {
     // res.send('HELLO from YelpCamp')
     res.render('home')
-})
+});
 
 app.get('/campgrounds', async(req, res) => {
     const campgrounds = await Campground.find({})
     res.render('campgrounds/index', { campgrounds })
+});
+
+// phải để route new trước route show, nếu không nó nhầm :id với new
+// không cần async
+app.get('/campgrounds/new', (req, res) => {
+    res.render('campgrounds/new')
+});
+// have to tell express to use middleware app.use(express.urlencoded....)
+app.post('/campgrounds', async(req, res) => {
+    const newCampground = new Campground(req.body.campground);
+    await newCampground.save();
+    res.redirect(`/campgrounds/${newCampground._id}`);
 })
 
 app.get('/campgrounds/:id', async(req, res) => {
     const { id } = req.params;
     const campground = await Campground.findById(id);
     //                           hoặc   findById(req.params.id);
-
     res.render('campgrounds/show', { campground })
-})
-
-// app.get('/makecampground', async(req, res) => {
-//     const camp = new Campground({ title: 'My Backyard', description: 'cheap camping!' });
-//     // vì save() mất tgian nên đổi thành async function
-//     await camp.save();
-//     res.send(camp);
-// })
+});
 
 app.listen(3000, () => {
     console.log('Serving on port 3000')
